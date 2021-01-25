@@ -1,0 +1,21 @@
+name: 'Deploy distribution to Bloomreach(BR) Cloud'
+description: 'This action deploys an application distribution to BR Cloud.'
+inputs:
+  brcStack:
+    description: 'BR Cloud stack name'
+    required: true
+  username:
+    description: 'BR Cloud username'
+    required: true
+  password:
+    description: 'BR Cloud password'
+    required: true
+  envName:
+    description: 'BR Cloud environment name'
+    required: true
+  distId:
+    description: 'BR Cloud distribution id'
+    required: true
+runs:
+  using: 'node12'
+  main: 'dist/index.js'
