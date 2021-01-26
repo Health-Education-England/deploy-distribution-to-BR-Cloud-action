@@ -8,7 +8,7 @@ export class ApiClient {
         this.setUp()
     }
 
-    public get<T = any, R = AxiosResponse<T>>(url: string, data?: any, config?: AxiosRequestConfig): Promise<R> {
+    public get<T = any, R = AxiosResponse<T>>(url: string, config?: AxiosRequestConfig): Promise<R> {
         return this.axios.get(url, config);
     }
 
