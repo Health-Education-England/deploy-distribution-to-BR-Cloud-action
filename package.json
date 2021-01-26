@@ -8,14 +8,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/adrianamiclos/upload-distribution-to-BRCloud-action.git"
+    "url": "git+https://github.com/Manifesto-Digital/deploy-distribution-to-BR-Cloud-action.git"
   },
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/adrianamiclos/upload-distribution-to-BRCloud-action/issues"
+    "url": "https://github.com/Manifesto-Digital/deploy-distribution-to-BR-Cloud-action/issues"
   },
-  "homepage": "https://github.com/adrianamiclos/upload-distribution-to-BRCloud-action#readme",
+  "homepage": "https://github.com/Manifesto-Digital/deploy-distribution-to-BR-Cloud-action#readme",
   "dependencies": {
     "@actions/core": "^1.2.6",
     "@types/axios": "^0.14.0",

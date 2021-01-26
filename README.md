@@ -27,7 +27,7 @@ The API documentation is available at `https://api-<stack-name>.onehippo.io/v3/d
 ## Example usage
 
 ```
-uses: adrianamiclos/deploy-distribution-to-BRCloud-action@v1.0
+uses: Manifesto-Digital/deploy-distribution-to-BR-Cloud-action@v1.0
 with:
   brcStack: "brStackName"
   username: ${{ secrets.BRC_USERNAME }}
@@ -36,20 +36,20 @@ with:
   envName: "envName"
 ```
 
-## Example usage with adrianamiclos/upload-distribution-to-BRCloud-action@v1.0
+## Example usage with Manifesto-Digital/upload-distribution-to-BR-Cloud-action@v1.0
 ```
 ...
   steps:
   - name: Upload distribution to Bloomreach Cloud
     id: upload
-    uses: adrianamiclos/upload-distribution-to-BRCloud-action@v1.0
+    uses: Manifesto-Digital/upload-distribution-to-BR-Cloud-action@v1.0
     with:
       brcStack: "brStackName"
       username: ${{ secrets.BRC_USERNAME }}
       password: ${{ secrets.BRC_PASSWORD }}
       distPath: "${{ github.workspace }}/target/distribution.tar.gz"
   - name: Deploy distribution to Bloomreach Cloud
-    uses: adrianamiclos/deploy-distribution-to-BRCloud-action@v1.0
+    uses: Manifesto-Digital/deploy-distribution-to-BR-Cloud-action@v1.0
     id: deploy
     with:
       brcStack: "brStackName"
