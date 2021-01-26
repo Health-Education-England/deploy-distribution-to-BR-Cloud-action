@@ -8,7 +8,9 @@ function initBrOperations(brcStack: string) {
         headers: {
             "Content-Type": "application/json",
             "Accept": "application/json"
-        }
+        },
+        timeout: 1000 * 120,
+        timeoutErrorMessage: "Timeout Error! The time limit of 2 minutes was exceeded."
     }
 
     const apiClient = new ApiClient(config)
