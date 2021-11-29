@@ -1,6 +1,7 @@
 import * as core from '@actions/core';
 import {BrOperations} from "./BrOperations";
 import {ApiClient} from "./ApiClient";
+import {AppConfigFileRole} from "./types";
 
 function initBrOperations(brcStack: string) {
     const config = {
@@ -24,6 +25,7 @@ async function deployDistribution() {
         const password = core.getInput('password', {required: true})
         const envName = core.getInput('envName', {required: true})
         const distId = core.getInput('distId', {required: true})
+        const configFilesAsSystemProperties = core.getInput('configFilesAsSystemProperties', {required: false})
 
         const brOperations = initBrOperations(brcStack)
 
@@ -34,15 +36,41 @@ async function deployDistribution() {
         core.info('Start deploying process');
         const envId = await brOperations.getEnvironmentId(envName, accessToken);
 
+        const appConfigFilesNameIdMap = await brOperations.getAppConfigFilesNameIdMap(accessToken);
+        core.info(`All BR Cloud config files name/id map = ${Object.entries([...appConfigFilesNameIdMap])}`);
+
+        const appConfigFileRoles: Array<AppConfigFileRole> = getAppConfigFileRoles(configFilesAsSystemProperties, 'systemproperty', appConfigFilesNameIdMap);
+
         if (!envId) {
             core.setFailed(`Deploy suspended! No environment with name ${envName} has been found.`);
         }
 
-        await brOperations.deploy(distId, envId, accessToken);
-        core.info(`Finished deploying process. DistributionID = ${distId} Environment ID: ${envId}`);
+        await brOperations.deploy(distId, envId, appConfigFileRoles, accessToken);
+        core.info(`Finished deploying process. Environment ID: ${envId}, DistributionID = ${distId} and Java 'systemproperty' role based AppConfigFileRoles: ${JSON.stringify(appConfigFileRoles)} `);
     } catch (error) {
         core.setFailed(error.message);
     }
+}
+
+function getAppConfigFileRoles(configFiles: string, role: string, appConfigFilesNameIdMap: Map<string, string>): Array<AppConfigFileRole> {
+    let appConfigFileRoles: Array<AppConfigFileRole> = [];
+
+    if (!configFiles) {
+        return appConfigFileRoles;
+    }
+
+    for (var file of configFiles.split('/,\s*/')) {
+        if (appConfigFilesNameIdMap.has(file)) {
+            appConfigFileRoles.push({
+                appConfigFileId: appConfigFilesNameIdMap.get(file)!,
+                role: role
+            });
+        } else {
+            core.error(`Deploy suspended! Config file ${file} doesn't exists on BR Cloud.`)
+        }
+    }
+
+    return appConfigFileRoles;
 }
 
 deployDistribution()

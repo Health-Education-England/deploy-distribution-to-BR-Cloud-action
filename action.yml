@@ -16,6 +16,9 @@ inputs:
   distId:
     description: 'BR Cloud distribution id'
     required: true
+  configFilesAsSystemProperties:
+    description: 'BR Cloud comma separated config files as Java system properties [role: "systemproperty"]'
+    required: false
 runs:
   using: 'node12'
   main: 'dist/index.js'

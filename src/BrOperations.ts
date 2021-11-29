@@ -1,4 +1,5 @@
 import {ApiClient} from "./ApiClient";
+import {AppConfigFileRole} from "./types";
 
 export class BrOperations {
     private apiClient: ApiClient;
@@ -24,12 +25,17 @@ export class BrOperations {
         return `Bearer ${authResponse.access_token}`
     }
 
-    async deploy(distId: string, environmentId: string, accessToken: string): Promise<void> {
+    async deploy(
+        distId: string,
+        environmentId: string,
+        appConfigFileRoles: Array<AppConfigFileRole>,
+        accessToken: string): Promise<void> {
         console.log('Deploy distribution to BRC.');
 
         const body = {
             distributionId: distId,
             strategy: 'stopstart',
+            appConfigFileRoles: appConfigFileRoles
         };
 
         await this.apiClient.put(
@@ -59,5 +65,27 @@ export class BrOperations {
         console.log('Received environment id.');
 
         return response.data.id;
+    }
+
+    async getAppConfigFilesNameIdMap(accessToken: string): Promise<Map<string, string>> {
+        console.log('Get app config files.');
+        const response = await this.apiClient.get(
+            '/v3/appconfigfiles',
+            {
+                headers: {
+                    Authorization: accessToken,
+                }
+            }
+        );
+        console.log('Received app config files.');
+
+        console.log('Translating app config files into name/id map.');
+        let configFilesNameToIdMap = new Map<string, string>();
+        for (var fileObj of response.data) {
+            configFilesNameToIdMap.set(fileObj.name, fileObj.id);
+        }
+        console.log('Finished translating app config files into name/id map.');
+
+        return configFilesNameToIdMap;
     }
 }

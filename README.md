@@ -1,6 +1,6 @@
 # Deploy distribution to Bloomreach(BR) Cloud action
-This action deploys a distribution to BR Cloud using the BR Cloud Rest API. 
-The API documentation is available at `https://api-<stack-name>.onehippo.io/v3/docs`. 
+This action deploys a distribution to BR Cloud using the BR Cloud Rest API. Currently, the action doesn't support copying configuration files though allows configuration files to use as Java system properties.
+The API documentation is available at `https://api-<stack-name>.onehippo.io/v3/docs`.
 
 ## Inputs
 
@@ -23,6 +23,9 @@ The API documentation is available at `https://api-<stack-name>.onehippo.io/v3/d
 ### `envName`
 
 **Required** BR Cloud environment name
+### `configFilesAsSystemProperties`
+
+**Optional** BR Cloud comma separated config files as Java system properties [role: "systemproperty"]
 
 ## Example usage
 
@@ -34,6 +37,7 @@ with:
   password: ${{ secrets.BRC_PASSWORD }}
   distId: "distId"
   envName: "envName"
+  configFilesAsSystemProperties: "configFile1,configFile2,..."
 ```
 
 ## Example usage with Manifesto-Digital/upload-distribution-to-BR-Cloud-action@v1.0
@@ -57,5 +61,5 @@ with:
       password: ${{ secrets.BRC_PASSWORD }}
       distId: ${{ steps.upload.outputs.distId }}
       envName: "envName"
-
+      configFilesAsSystemProperties: "configFile1,configFile2,..."
 ```
