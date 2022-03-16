@@ -30,7 +30,7 @@ The API documentation is available at `https://api-<stack-name>.onehippo.io/v3/d
 ## Example usage
 
 ```
-uses: Manifesto-Digital/deploy-distribution-to-BR-Cloud-action@v1.0
+uses: Health-Education-England/deploy-distribution-to-BR-Cloud-action@v1.0
 with:
   brcStack: "brStackName"
   username: ${{ secrets.BRC_USERNAME }}
@@ -40,20 +40,20 @@ with:
   configFilesAsSystemProperties: "configFile1,configFile2,..."
 ```
 
-## Example usage with Manifesto-Digital/upload-distribution-to-BR-Cloud-action@v1.0
+## Example usage with Health-Education-England/upload-distribution-to-BR-Cloud-action@v1.0
 ```
 ...
   steps:
   - name: Upload distribution to Bloomreach Cloud
     id: upload
-    uses: Manifesto-Digital/upload-distribution-to-BR-Cloud-action@v1.0
+    uses: Health-Education-England/upload-distribution-to-BR-Cloud-action@v1.0
     with:
       brcStack: "brStackName"
       username: ${{ secrets.BRC_USERNAME }}
       password: ${{ secrets.BRC_PASSWORD }}
       distPath: "${{ github.workspace }}/target/distribution.tar.gz"
   - name: Deploy distribution to Bloomreach Cloud
-    uses: Manifesto-Digital/deploy-distribution-to-BR-Cloud-action@v1.0
+    uses: Health-Education-England/deploy-distribution-to-BR-Cloud-action@v1.0
     id: deploy
     with:
       brcStack: "brStackName"
