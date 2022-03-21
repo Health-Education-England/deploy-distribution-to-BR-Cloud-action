@@ -1,7 +1,221 @@
+module.exports =
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 351:
+/***/ 330:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ApiClient = void 0;
+const axios_1 = __importDefault(__nccwpck_require__(777));
+class ApiClient {
+    constructor(config) {
+        this.axios = axios_1.default.create(config);
+        this.setUp();
+    }
+    get(url, config) {
+        return this.axios.get(url, config);
+    }
+    post(url, data, config) {
+        return this.axios.post(url, data, config);
+    }
+    put(url, data, config) {
+        return this.axios.put(url, data, config);
+    }
+    setUp() {
+        this.axios.interceptors.response.use((response) => response, ApiClient.onRejectLogError);
+    }
+    static onRejectLogError(error) {
+        let errorMessage = 'An error has occurred during BRC API communication. Please see more details below:';
+        if (error.response) {
+            errorMessage += `\nResponse: ${JSON.stringify(error.response.data, null, 2)} `;
+            errorMessage += `\nStatus: ${JSON.stringify(error.response.status, null, 2)}`;
+            errorMessage += `\nHeaders: ${JSON.stringify(error.response.headers, null, 2)}`;
+        }
+        else if (error.request) {
+            errorMessage += 'No response received.';
+        }
+        else {
+            errorMessage += `Unknown error: ${error.message}`;
+        }
+        errorMessage += `\nRequest Config: ${JSON.stringify(error.config, null, 2)}`;
+        return Promise.reject(new Error(errorMessage));
+    }
+}
+exports.ApiClient = ApiClient;
+
+
+/***/ }),
+
+/***/ 321:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.BrOperations = void 0;
+class BrOperations {
+    constructor(apiClient) {
+        this.apiClient = apiClient;
+    }
+    async login(username, password) {
+        console.log('Retrieve BRC access token.');
+        const authURL = '/v3/authn/access_token';
+        const response = await this.apiClient.post(authURL, {
+            username,
+            password,
+        });
+        console.log('Received access token');
+        const authResponse = response.data;
+        return `Bearer ${authResponse.access_token}`;
+    }
+    async deploy(distId, environmentId, appConfigFileRoles, accessToken) {
+        console.log('Deploy distribution to BRC.');
+        const body = {
+            distributionId: distId,
+            strategy: 'stopstart',
+            appConfigFileRoles: appConfigFileRoles
+        };
+        await this.apiClient.put(`/v3/environments/${environmentId}/deploy`, body, {
+            headers: {
+                Authorization: accessToken,
+            },
+        });
+        console.log('Deploy request completed.');
+    }
+    async getEnvironmentId(environmentName, accessToken) {
+        console.log('Get environment id.');
+        const response = await this.apiClient.get('/v3/environments?name=' + environmentName, {
+            headers: {
+                Authorization: accessToken,
+            }
+        });
+        console.log('Received environment id.');
+        return response.data.id;
+    }
+    async getAppConfigFilesNameIdMap(accessToken) {
+        console.log('Get app config files.');
+        const response = await this.apiClient.get('/v3/appconfigfiles', {
+            headers: {
+                Authorization: accessToken,
+            }
+        });
+        console.log('Received app config files.');
+        console.log('Translating app config files into name/id map.');
+        let configFilesNameToIdMap = new Map();
+        for (var fileObj of response.data) {
+            configFilesNameToIdMap.set(fileObj.name, fileObj.id);
+        }
+        console.log('Finished translating app config files into name/id map.');
+        return configFilesNameToIdMap;
+    }
+}
+exports.BrOperations = BrOperations;
+
+
+/***/ }),
+
+/***/ 72:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const core = __importStar(__nccwpck_require__(674));
+const BrOperations_1 = __nccwpck_require__(321);
+const ApiClient_1 = __nccwpck_require__(330);
+function initBrOperations(brcStack) {
+    const config = {
+        baseURL: `https://api-${brcStack}.onehippo.io`,
+        headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
+        timeout: 1000 * 120,
+        timeoutErrorMessage: "Timeout Error! The time limit of 2 minutes was exceeded."
+    };
+    const apiClient = new ApiClient_1.ApiClient(config);
+    return new BrOperations_1.BrOperations(apiClient);
+}
+async function deployDistribution() {
+    try {
+        const brcStack = core.getInput('brcStack', { required: true });
+        const username = core.getInput('username', { required: true });
+        const password = core.getInput('password', { required: true });
+        const envName = core.getInput('envName', { required: true });
+        const distId = core.getInput('distId', { required: true });
+        const configFilesAsSystemProperties = core.getInput('configFilesAsSystemProperties', { required: false });
+        const brOperations = initBrOperations(brcStack);
+        core.info('Start login process');
+        const accessToken = await brOperations.login(username, password);
+        core.info('Login process finished with success');
+        core.info('Start deploying process');
+        const envId = await brOperations.getEnvironmentId(envName, accessToken);
+        const appConfigFilesNameIdMap = await brOperations.getAppConfigFilesNameIdMap(accessToken);
+        core.info(`All BR Cloud config files name/id map = ${Object.entries([...appConfigFilesNameIdMap])}`);
+        const appConfigFileRoles = getAppConfigFileRoles(configFilesAsSystemProperties, 'systemproperty', appConfigFilesNameIdMap);
+        if (!envId) {
+            core.setFailed(`Deploy suspended! No environment with name ${envName} has been found.`);
+        }
+        await brOperations.deploy(distId, envId, appConfigFileRoles, accessToken);
+        core.info(`Finished deploying process. Environment ID: ${envId}, DistributionID = ${distId} and Java 'systemproperty' role based AppConfigFileRoles: ${JSON.stringify(appConfigFileRoles)} `);
+    }
+    catch (error) {
+        core.setFailed(error.message);
+    }
+}
+function getAppConfigFileRoles(configFiles, role, appConfigFilesNameIdMap) {
+    let appConfigFileRoles = [];
+    if (!configFiles) {
+        return appConfigFileRoles;
+    }
+    for (var file of configFiles.split('/,\s*/')) {
+        if (appConfigFilesNameIdMap.has(file)) {
+            appConfigFileRoles.push({
+                appConfigFileId: appConfigFilesNameIdMap.get(file),
+                role: role
+            });
+        }
+        else {
+            core.error(`Deploy suspended! Config file ${file} doesn't exists on BR Cloud.`);
+        }
+    }
+    return appConfigFileRoles;
+}
+deployDistribution()
+    .then(() => core.info("Finished action"))
+    .catch((error) => {
+    core.setFailed(error.message);
+});
+
+
+/***/ }),
+
+/***/ 151:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -14,8 +228,8 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const os = __importStar(__nccwpck_require__(37));
-const utils_1 = __nccwpck_require__(278);
+const os = __importStar(__nccwpck_require__(87));
+const utils_1 = __nccwpck_require__(501);
 /**
  * Commands
  *
@@ -87,7 +301,7 @@ function escapeProperty(s) {
 
 /***/ }),
 
-/***/ 186:
+/***/ 674:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -109,11 +323,11 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const command_1 = __nccwpck_require__(351);
-const file_command_1 = __nccwpck_require__(717);
-const utils_1 = __nccwpck_require__(278);
-const os = __importStar(__nccwpck_require__(37));
-const path = __importStar(__nccwpck_require__(17));
+const command_1 = __nccwpck_require__(151);
+const file_command_1 = __nccwpck_require__(744);
+const utils_1 = __nccwpck_require__(501);
+const os = __importStar(__nccwpck_require__(87));
+const path = __importStar(__nccwpck_require__(622));
 /**
  * The code to exit an action
  */
@@ -332,7 +546,7 @@ exports.getState = getState;
 
 /***/ }),
 
-/***/ 717:
+/***/ 744:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -348,9 +562,9 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 // We use any as a valid input type
 /* eslint-disable @typescript-eslint/no-explicit-any */
-const fs = __importStar(__nccwpck_require__(147));
-const os = __importStar(__nccwpck_require__(37));
-const utils_1 = __nccwpck_require__(278);
+const fs = __importStar(__nccwpck_require__(747));
+const os = __importStar(__nccwpck_require__(87));
+const utils_1 = __nccwpck_require__(501);
 function issueCommand(command, message) {
     const filePath = process.env[`GITHUB_${command}`];
     if (!filePath) {
@@ -368,7 +582,7 @@ exports.issueCommand = issueCommand;
 
 /***/ }),
 
-/***/ 278:
+/***/ 501:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -394,34 +608,34 @@ exports.toCommandValue = toCommandValue;
 
 /***/ }),
 
-/***/ 545:
+/***/ 777:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-module.exports = __nccwpck_require__(618);
+module.exports = __nccwpck_require__(711);
 
 /***/ }),
 
-/***/ 104:
+/***/ 294:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var utils = __nccwpck_require__(328);
-var settle = __nccwpck_require__(211);
-var buildFullPath = __nccwpck_require__(934);
-var buildURL = __nccwpck_require__(646);
-var http = __nccwpck_require__(685);
-var https = __nccwpck_require__(687);
-var httpFollow = (__nccwpck_require__(707).http);
-var httpsFollow = (__nccwpck_require__(707).https);
-var url = __nccwpck_require__(310);
-var zlib = __nccwpck_require__(796);
-var VERSION = (__nccwpck_require__(322).version);
-var createError = __nccwpck_require__(226);
-var enhanceError = __nccwpck_require__(516);
-var defaults = __nccwpck_require__(190);
-var Cancel = __nccwpck_require__(875);
+var utils = __nccwpck_require__(202);
+var settle = __nccwpck_require__(574);
+var buildFullPath = __nccwpck_require__(895);
+var buildURL = __nccwpck_require__(603);
+var http = __nccwpck_require__(605);
+var https = __nccwpck_require__(211);
+var httpFollow = __nccwpck_require__(64).http;
+var httpsFollow = __nccwpck_require__(64).https;
+var url = __nccwpck_require__(835);
+var zlib = __nccwpck_require__(761);
+var VERSION = __nccwpck_require__(279).version;
+var createError = __nccwpck_require__(126);
+var enhanceError = __nccwpck_require__(47);
+var transitionalDefaults = __nccwpck_require__(613);
+var Cancel = __nccwpck_require__(680);
 
 var isHttps = /https:?/;
 
@@ -467,8 +681,10 @@ module.exports = function httpAdapter(config) {
       done();
       resolvePromise(value);
     };
+    var rejected = false;
     var reject = function reject(value) {
       done();
+      rejected = true;
       rejectPromise(value);
     };
     var data = config.data;
@@ -506,6 +722,10 @@ module.exports = function httpAdapter(config) {
         ));
       }
 
+      if (config.maxBodyLength > -1 && data.length > config.maxBodyLength) {
+        return reject(createError('Request body larger than maxBodyLength limit', config));
+      }
+
       // Add Content-Length header if data exists
       if (!headerNames['content-length']) {
         headers['Content-Length'] = data.length;
@@ -538,6 +758,16 @@ module.exports = function httpAdapter(config) {
 
     var isHttpsRequest = isHttps.test(protocol);
     var agent = isHttpsRequest ? config.httpsAgent : config.httpAgent;
+
+    try {
+      buildURL(parsed.path, config.params, config.paramsSerializer).replace(/^\?/, '');
+    } catch (err) {
+      var customErr = new Error(err.message);
+      customErr.config = config;
+      customErr.url = config.url;
+      customErr.exists = true;
+      reject(customErr);
+    }
 
     var options = {
       path: buildURL(parsed.path, config.params, config.paramsSerializer).replace(/^\?/, ''),
@@ -676,10 +906,20 @@ module.exports = function httpAdapter(config) {
 
           // make sure the content length is not over the maxContentLength if specified
           if (config.maxContentLength > -1 && totalResponseBytes > config.maxContentLength) {
+            // stream.destoy() emit aborted event before calling reject() on Node.js v16
+            rejected = true;
             stream.destroy();
             reject(createError('maxContentLength size of ' + config.maxContentLength + ' exceeded',
               config, null, lastRequest));
           }
+        });
+
+        stream.on('aborted', function handlerStreamAborted() {
+          if (rejected) {
+            return;
+          }
+          stream.destroy();
+          reject(createError('error request aborted', config, 'ERR_REQUEST_ABORTED', lastRequest));
         });
 
         stream.on('error', function handleStreamError(err) {
@@ -688,15 +928,18 @@ module.exports = function httpAdapter(config) {
         });
 
         stream.on('end', function handleStreamEnd() {
-          var responseData = Buffer.concat(responseBuffer);
-          if (config.responseType !== 'arraybuffer') {
-            responseData = responseData.toString(config.responseEncoding);
-            if (!config.responseEncoding || config.responseEncoding === 'utf8') {
-              responseData = utils.stripBOM(responseData);
+          try {
+            var responseData = responseBuffer.length === 1 ? responseBuffer[0] : Buffer.concat(responseBuffer);
+            if (config.responseType !== 'arraybuffer') {
+              responseData = responseData.toString(config.responseEncoding);
+              if (!config.responseEncoding || config.responseEncoding === 'utf8') {
+                responseData = utils.stripBOM(responseData);
+              }
             }
+            response.data = responseData;
+          } catch (err) {
+            reject(enhanceError(err, config, err.code, response.request, response));
           }
-
-          response.data = responseData;
           settle(resolve, reject, response);
         });
       }
@@ -706,6 +949,12 @@ module.exports = function httpAdapter(config) {
     req.on('error', function handleRequestError(err) {
       if (req.aborted && err.code !== 'ERR_FR_TOO_MANY_REDIRECTS') return;
       reject(enhanceError(err, config, null, req));
+    });
+
+    // set tcp keep alive to prevent drop connection by peer
+    req.on('socket', function handleRequestSocket(socket) {
+      // default interval of sending ack packet is 1 minute
+      socket.setKeepAlive(true, 1000 * 60);
     });
 
     // Handle request timeout
@@ -731,9 +980,15 @@ module.exports = function httpAdapter(config) {
       // ClientRequest.setTimeout will be fired on the specify milliseconds, and can make sure that abort() will be fired after connect.
       req.setTimeout(timeout, function handleRequestTimeout() {
         req.abort();
-        var transitional = config.transitional || defaults.transitional;
+        var timeoutErrorMessage = '';
+        if (config.timeoutErrorMessage) {
+          timeoutErrorMessage = config.timeoutErrorMessage;
+        } else {
+          timeoutErrorMessage = 'timeout of ' + config.timeout + 'ms exceeded';
+        }
+        var transitional = config.transitional || transitionalDefaults;
         reject(createError(
-          'timeout of ' + timeout + 'ms exceeded',
+          timeoutErrorMessage,
           config,
           transitional.clarifyTimeoutError ? 'ETIMEDOUT' : 'ECONNABORTED',
           req
@@ -772,22 +1027,22 @@ module.exports = function httpAdapter(config) {
 
 /***/ }),
 
-/***/ 454:
+/***/ 783:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var utils = __nccwpck_require__(328);
-var settle = __nccwpck_require__(211);
-var cookies = __nccwpck_require__(169);
-var buildURL = __nccwpck_require__(646);
-var buildFullPath = __nccwpck_require__(934);
-var parseHeaders = __nccwpck_require__(455);
-var isURLSameOrigin = __nccwpck_require__(608);
-var createError = __nccwpck_require__(226);
-var defaults = __nccwpck_require__(190);
-var Cancel = __nccwpck_require__(875);
+var utils = __nccwpck_require__(202);
+var settle = __nccwpck_require__(574);
+var cookies = __nccwpck_require__(466);
+var buildURL = __nccwpck_require__(603);
+var buildFullPath = __nccwpck_require__(895);
+var parseHeaders = __nccwpck_require__(729);
+var isURLSameOrigin = __nccwpck_require__(988);
+var createError = __nccwpck_require__(126);
+var transitionalDefaults = __nccwpck_require__(613);
+var Cancel = __nccwpck_require__(680);
 
 module.exports = function xhrAdapter(config) {
   return new Promise(function dispatchXhrRequest(resolve, reject) {
@@ -901,7 +1156,7 @@ module.exports = function xhrAdapter(config) {
     // Handle timeout
     request.ontimeout = function handleTimeout() {
       var timeoutErrorMessage = config.timeout ? 'timeout of ' + config.timeout + 'ms exceeded' : 'timeout exceeded';
-      var transitional = config.transitional || defaults.transitional;
+      var transitional = config.transitional || transitionalDefaults;
       if (config.timeoutErrorMessage) {
         timeoutErrorMessage = config.timeoutErrorMessage;
       }
@@ -992,17 +1247,17 @@ module.exports = function xhrAdapter(config) {
 
 /***/ }),
 
-/***/ 618:
+/***/ 711:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var utils = __nccwpck_require__(328);
-var bind = __nccwpck_require__(65);
-var Axios = __nccwpck_require__(178);
-var mergeConfig = __nccwpck_require__(831);
-var defaults = __nccwpck_require__(190);
+var utils = __nccwpck_require__(202);
+var bind = __nccwpck_require__(555);
+var Axios = __nccwpck_require__(326);
+var mergeConfig = __nccwpck_require__(834);
+var defaults = __nccwpck_require__(19);
 
 /**
  * Create an instance of Axios
@@ -1035,29 +1290,29 @@ var axios = createInstance(defaults);
 axios.Axios = Axios;
 
 // Expose Cancel & CancelToken
-axios.Cancel = __nccwpck_require__(875);
-axios.CancelToken = __nccwpck_require__(587);
-axios.isCancel = __nccwpck_require__(57);
-axios.VERSION = (__nccwpck_require__(322).version);
+axios.Cancel = __nccwpck_require__(680);
+axios.CancelToken = __nccwpck_require__(443);
+axios.isCancel = __nccwpck_require__(20);
+axios.VERSION = __nccwpck_require__(279).version;
 
 // Expose all/spread
 axios.all = function all(promises) {
   return Promise.all(promises);
 };
-axios.spread = __nccwpck_require__(850);
+axios.spread = __nccwpck_require__(510);
 
 // Expose isAxiosError
-axios.isAxiosError = __nccwpck_require__(650);
+axios.isAxiosError = __nccwpck_require__(727);
 
 module.exports = axios;
 
 // Allow use of default import syntax in TypeScript
-module.exports["default"] = axios;
+module.exports.default = axios;
 
 
 /***/ }),
 
-/***/ 875:
+/***/ 680:
 /***/ ((module) => {
 
 "use strict";
@@ -1084,13 +1339,13 @@ module.exports = Cancel;
 
 /***/ }),
 
-/***/ 587:
+/***/ 443:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var Cancel = __nccwpck_require__(875);
+var Cancel = __nccwpck_require__(680);
 
 /**
  * A `CancelToken` is an object that can be used to request cancellation of an operation.
@@ -1211,7 +1466,7 @@ module.exports = CancelToken;
 
 /***/ }),
 
-/***/ 57:
+/***/ 20:
 /***/ ((module) => {
 
 "use strict";
@@ -1224,18 +1479,18 @@ module.exports = function isCancel(value) {
 
 /***/ }),
 
-/***/ 178:
+/***/ 326:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var utils = __nccwpck_require__(328);
-var buildURL = __nccwpck_require__(646);
-var InterceptorManager = __nccwpck_require__(214);
-var dispatchRequest = __nccwpck_require__(62);
-var mergeConfig = __nccwpck_require__(831);
-var validator = __nccwpck_require__(632);
+var utils = __nccwpck_require__(202);
+var buildURL = __nccwpck_require__(603);
+var InterceptorManager = __nccwpck_require__(530);
+var dispatchRequest = __nccwpck_require__(264);
+var mergeConfig = __nccwpck_require__(834);
+var validator = __nccwpck_require__(477);
 
 var validators = validator.validators;
 /**
@@ -1256,14 +1511,14 @@ function Axios(instanceConfig) {
  *
  * @param {Object} config The config specific for this request (merged with this.defaults)
  */
-Axios.prototype.request = function request(config) {
+Axios.prototype.request = function request(configOrUrl, config) {
   /*eslint no-param-reassign:0*/
   // Allow for axios('example/url'[, config]) a la fetch API
-  if (typeof config === 'string') {
-    config = arguments[1] || {};
-    config.url = arguments[0];
-  } else {
+  if (typeof configOrUrl === 'string') {
     config = config || {};
+    config.url = configOrUrl;
+  } else {
+    config = configOrUrl || {};
   }
 
   config = mergeConfig(this.defaults, config);
@@ -1380,13 +1635,13 @@ module.exports = Axios;
 
 /***/ }),
 
-/***/ 214:
+/***/ 530:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var utils = __nccwpck_require__(328);
+var utils = __nccwpck_require__(202);
 
 function InterceptorManager() {
   this.handlers = [];
@@ -1442,14 +1697,14 @@ module.exports = InterceptorManager;
 
 /***/ }),
 
-/***/ 934:
+/***/ 895:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var isAbsoluteURL = __nccwpck_require__(301);
-var combineURLs = __nccwpck_require__(189);
+var isAbsoluteURL = __nccwpck_require__(997);
+var combineURLs = __nccwpck_require__(421);
 
 /**
  * Creates a new URL by combining the baseURL with the requestedURL,
@@ -1470,13 +1725,13 @@ module.exports = function buildFullPath(baseURL, requestedURL) {
 
 /***/ }),
 
-/***/ 226:
+/***/ 126:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var enhanceError = __nccwpck_require__(516);
+var enhanceError = __nccwpck_require__(47);
 
 /**
  * Create an Error with the specified message, config, error code, request and response.
@@ -1496,17 +1751,17 @@ module.exports = function createError(message, config, code, request, response) 
 
 /***/ }),
 
-/***/ 62:
+/***/ 264:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var utils = __nccwpck_require__(328);
-var transformData = __nccwpck_require__(812);
-var isCancel = __nccwpck_require__(57);
-var defaults = __nccwpck_require__(190);
-var Cancel = __nccwpck_require__(875);
+var utils = __nccwpck_require__(202);
+var transformData = __nccwpck_require__(358);
+var isCancel = __nccwpck_require__(20);
+var defaults = __nccwpck_require__(19);
+var Cancel = __nccwpck_require__(680);
 
 /**
  * Throws a `Cancel` if cancellation has been requested.
@@ -1591,7 +1846,7 @@ module.exports = function dispatchRequest(config) {
 
 /***/ }),
 
-/***/ 516:
+/***/ 47:
 /***/ ((module) => {
 
 "use strict";
@@ -1642,13 +1897,13 @@ module.exports = function enhanceError(error, config, code, request, response) {
 
 /***/ }),
 
-/***/ 831:
+/***/ 834:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var utils = __nccwpck_require__(328);
+var utils = __nccwpck_require__(202);
 
 /**
  * Config-specific merge-function which creates a new config-object
@@ -1749,13 +2004,13 @@ module.exports = function mergeConfig(config1, config2) {
 
 /***/ }),
 
-/***/ 211:
+/***/ 574:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var createError = __nccwpck_require__(226);
+var createError = __nccwpck_require__(126);
 
 /**
  * Resolve or reject a Promise based on response status.
@@ -1782,14 +2037,14 @@ module.exports = function settle(resolve, reject, response) {
 
 /***/ }),
 
-/***/ 812:
+/***/ 358:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var utils = __nccwpck_require__(328);
-var defaults = __nccwpck_require__(190);
+var utils = __nccwpck_require__(202);
+var defaults = __nccwpck_require__(19);
 
 /**
  * Transform the data for a request or a response
@@ -1812,15 +2067,16 @@ module.exports = function transformData(data, headers, fns) {
 
 /***/ }),
 
-/***/ 190:
+/***/ 19:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var utils = __nccwpck_require__(328);
-var normalizeHeaderName = __nccwpck_require__(240);
-var enhanceError = __nccwpck_require__(516);
+var utils = __nccwpck_require__(202);
+var normalizeHeaderName = __nccwpck_require__(355);
+var enhanceError = __nccwpck_require__(47);
+var transitionalDefaults = __nccwpck_require__(613);
 
 var DEFAULT_CONTENT_TYPE = {
   'Content-Type': 'application/x-www-form-urlencoded'
@@ -1836,10 +2092,10 @@ function getDefaultAdapter() {
   var adapter;
   if (typeof XMLHttpRequest !== 'undefined') {
     // For browsers use XHR adapter
-    adapter = __nccwpck_require__(454);
+    adapter = __nccwpck_require__(783);
   } else if (typeof process !== 'undefined' && Object.prototype.toString.call(process) === '[object process]') {
     // For node use HTTP adapter
-    adapter = __nccwpck_require__(104);
+    adapter = __nccwpck_require__(294);
   }
   return adapter;
 }
@@ -1861,11 +2117,7 @@ function stringifySafely(rawValue, parser, encoder) {
 
 var defaults = {
 
-  transitional: {
-    silentJSONParsing: true,
-    forcedJSONParsing: true,
-    clarifyTimeoutError: false
-  },
+  transitional: transitionalDefaults,
 
   adapter: getDefaultAdapter(),
 
@@ -1954,16 +2206,31 @@ module.exports = defaults;
 
 /***/ }),
 
-/***/ 322:
+/***/ 613:
+/***/ ((module) => {
+
+"use strict";
+
+
+module.exports = {
+  silentJSONParsing: true,
+  forcedJSONParsing: true,
+  clarifyTimeoutError: false
+};
+
+
+/***/ }),
+
+/***/ 279:
 /***/ ((module) => {
 
 module.exports = {
-  "version": "0.24.0"
+  "version": "0.26.1"
 };
 
 /***/ }),
 
-/***/ 65:
+/***/ 555:
 /***/ ((module) => {
 
 "use strict";
@@ -1982,13 +2249,13 @@ module.exports = function bind(fn, thisArg) {
 
 /***/ }),
 
-/***/ 646:
+/***/ 603:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var utils = __nccwpck_require__(328);
+var utils = __nccwpck_require__(202);
 
 function encode(val) {
   return encodeURIComponent(val).
@@ -2060,7 +2327,7 @@ module.exports = function buildURL(url, params, paramsSerializer) {
 
 /***/ }),
 
-/***/ 189:
+/***/ 421:
 /***/ ((module) => {
 
 "use strict";
@@ -2082,13 +2349,13 @@ module.exports = function combineURLs(baseURL, relativeURL) {
 
 /***/ }),
 
-/***/ 169:
+/***/ 466:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var utils = __nccwpck_require__(328);
+var utils = __nccwpck_require__(202);
 
 module.exports = (
   utils.isStandardBrowserEnv() ?
@@ -2143,7 +2410,7 @@ module.exports = (
 
 /***/ }),
 
-/***/ 301:
+/***/ 997:
 /***/ ((module) => {
 
 "use strict";
@@ -2159,17 +2426,19 @@ module.exports = function isAbsoluteURL(url) {
   // A URL is considered absolute if it begins with "<scheme>://" or "//" (protocol-relative URL).
   // RFC 3986 defines scheme name as a sequence of characters beginning with a letter and followed
   // by any combination of letters, digits, plus, period, or hyphen.
-  return /^([a-z][a-z\d\+\-\.]*:)?\/\//i.test(url);
+  return /^([a-z][a-z\d+\-.]*:)?\/\//i.test(url);
 };
 
 
 /***/ }),
 
-/***/ 650:
-/***/ ((module) => {
+/***/ 727:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
+
+var utils = __nccwpck_require__(202);
 
 /**
  * Determines whether the payload is an error thrown by Axios
@@ -2178,19 +2447,19 @@ module.exports = function isAbsoluteURL(url) {
  * @returns {boolean} True if the payload is an error thrown by Axios, otherwise false
  */
 module.exports = function isAxiosError(payload) {
-  return (typeof payload === 'object') && (payload.isAxiosError === true);
+  return utils.isObject(payload) && (payload.isAxiosError === true);
 };
 
 
 /***/ }),
 
-/***/ 608:
+/***/ 988:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var utils = __nccwpck_require__(328);
+var utils = __nccwpck_require__(202);
 
 module.exports = (
   utils.isStandardBrowserEnv() ?
@@ -2260,13 +2529,13 @@ module.exports = (
 
 /***/ }),
 
-/***/ 240:
+/***/ 355:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var utils = __nccwpck_require__(328);
+var utils = __nccwpck_require__(202);
 
 module.exports = function normalizeHeaderName(headers, normalizedName) {
   utils.forEach(headers, function processHeader(value, name) {
@@ -2280,13 +2549,13 @@ module.exports = function normalizeHeaderName(headers, normalizedName) {
 
 /***/ }),
 
-/***/ 455:
+/***/ 729:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var utils = __nccwpck_require__(328);
+var utils = __nccwpck_require__(202);
 
 // Headers whose duplicates are ignored by node
 // c.f. https://nodejs.org/api/http.html#http_message_headers
@@ -2341,7 +2610,7 @@ module.exports = function parseHeaders(headers) {
 
 /***/ }),
 
-/***/ 850:
+/***/ 510:
 /***/ ((module) => {
 
 "use strict";
@@ -2376,13 +2645,13 @@ module.exports = function spread(callback) {
 
 /***/ }),
 
-/***/ 632:
+/***/ 477:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var VERSION = (__nccwpck_require__(322).version);
+var VERSION = __nccwpck_require__(279).version;
 
 var validators = {};
 
@@ -2466,13 +2735,13 @@ module.exports = {
 
 /***/ }),
 
-/***/ 328:
+/***/ 202:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var bind = __nccwpck_require__(65);
+var bind = __nccwpck_require__(555);
 
 // utils is a library of generic helper functions non-specific to axios
 
@@ -2485,7 +2754,7 @@ var toString = Object.prototype.toString;
  * @returns {boolean} True if value is an Array, otherwise false
  */
 function isArray(val) {
-  return toString.call(val) === '[object Array]';
+  return Array.isArray(val);
 }
 
 /**
@@ -2526,7 +2795,7 @@ function isArrayBuffer(val) {
  * @returns {boolean} True if value is an FormData, otherwise false
  */
 function isFormData(val) {
-  return (typeof FormData !== 'undefined') && (val instanceof FormData);
+  return toString.call(val) === '[object FormData]';
 }
 
 /**
@@ -2540,7 +2809,7 @@ function isArrayBufferView(val) {
   if ((typeof ArrayBuffer !== 'undefined') && (ArrayBuffer.isView)) {
     result = ArrayBuffer.isView(val);
   } else {
-    result = (val) && (val.buffer) && (val.buffer instanceof ArrayBuffer);
+    result = (val) && (val.buffer) && (isArrayBuffer(val.buffer));
   }
   return result;
 }
@@ -2647,7 +2916,7 @@ function isStream(val) {
  * @returns {boolean} True if value is a URLSearchParams object, otherwise false
  */
 function isURLSearchParams(val) {
-  return typeof URLSearchParams !== 'undefined' && val instanceof URLSearchParams;
+  return toString.call(val) === '[object URLSearchParams]';
 }
 
 /**
@@ -2823,7 +3092,7 @@ module.exports = {
 
 /***/ }),
 
-/***/ 133:
+/***/ 650:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 var debug;
@@ -2832,7 +3101,7 @@ module.exports = function () {
   if (!debug) {
     try {
       /* eslint global-require: off */
-      debug = __nccwpck_require__(975)("follow-redirects");
+      debug = __nccwpck_require__(614)("follow-redirects");
     }
     catch (error) { /* */ }
     if (typeof debug !== "function") {
@@ -2845,16 +3114,16 @@ module.exports = function () {
 
 /***/ }),
 
-/***/ 707:
+/***/ 64:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-var url = __nccwpck_require__(310);
+var url = __nccwpck_require__(835);
 var URL = url.URL;
-var http = __nccwpck_require__(685);
-var https = __nccwpck_require__(687);
-var Writable = (__nccwpck_require__(781).Writable);
-var assert = __nccwpck_require__(491);
-var debug = __nccwpck_require__(133);
+var http = __nccwpck_require__(605);
+var https = __nccwpck_require__(211);
+var Writable = __nccwpck_require__(413).Writable;
+var assert = __nccwpck_require__(357);
+var debug = __nccwpck_require__(650);
 
 // Create handlers that pass events from native requests
 var events = ["abort", "aborted", "connect", "error", "socket", "timeout"];
@@ -3186,96 +3455,101 @@ RedirectableRequest.prototype._processResponse = function (response) {
   // the user agent MAY automatically redirect its request to the URI
   // referenced by the Location field value,
   // even if the specific status code is not understood.
+
+  // If the response is not a redirect; return it as-is
   var location = response.headers.location;
-  if (location && this._options.followRedirects !== false &&
-      statusCode >= 300 && statusCode < 400) {
-    // Abort the current request
-    abortRequest(this._currentRequest);
-    // Discard the remainder of the response to avoid waiting for data
-    response.destroy();
-
-    // RFC7231§6.4: A client SHOULD detect and intervene
-    // in cyclical redirections (i.e., "infinite" redirection loops).
-    if (++this._redirectCount > this._options.maxRedirects) {
-      this.emit("error", new TooManyRedirectsError());
-      return;
-    }
-
-    // RFC7231§6.4: Automatic redirection needs to done with
-    // care for methods not known to be safe, […]
-    // RFC7231§6.4.2–3: For historical reasons, a user agent MAY change
-    // the request method from POST to GET for the subsequent request.
-    if ((statusCode === 301 || statusCode === 302) && this._options.method === "POST" ||
-        // RFC7231§6.4.4: The 303 (See Other) status code indicates that
-        // the server is redirecting the user agent to a different resource […]
-        // A user agent can perform a retrieval request targeting that URI
-        // (a GET or HEAD request if using HTTP) […]
-        (statusCode === 303) && !/^(?:GET|HEAD)$/.test(this._options.method)) {
-      this._options.method = "GET";
-      // Drop a possible entity and headers related to it
-      this._requestBodyBuffers = [];
-      removeMatchingHeaders(/^content-/i, this._options.headers);
-    }
-
-    // Drop the Host header, as the redirect might lead to a different host
-    var currentHostHeader = removeMatchingHeaders(/^host$/i, this._options.headers);
-
-    // If the redirect is relative, carry over the host of the last request
-    var currentUrlParts = url.parse(this._currentUrl);
-    var currentHost = currentHostHeader || currentUrlParts.host;
-    var currentUrl = /^\w+:/.test(location) ? this._currentUrl :
-      url.format(Object.assign(currentUrlParts, { host: currentHost }));
-
-    // Determine the URL of the redirection
-    var redirectUrl;
-    try {
-      redirectUrl = url.resolve(currentUrl, location);
-    }
-    catch (cause) {
-      this.emit("error", new RedirectionError(cause));
-      return;
-    }
-
-    // Create the redirected request
-    debug("redirecting to", redirectUrl);
-    this._isRedirect = true;
-    var redirectUrlParts = url.parse(redirectUrl);
-    Object.assign(this._options, redirectUrlParts);
-
-    // Drop the Authorization header if redirecting to another domain
-    if (!(redirectUrlParts.host === currentHost || isSubdomainOf(redirectUrlParts.host, currentHost))) {
-      removeMatchingHeaders(/^authorization$/i, this._options.headers);
-    }
-
-    // Evaluate the beforeRedirect callback
-    if (typeof this._options.beforeRedirect === "function") {
-      var responseDetails = { headers: response.headers };
-      try {
-        this._options.beforeRedirect.call(null, this._options, responseDetails);
-      }
-      catch (err) {
-        this.emit("error", err);
-        return;
-      }
-      this._sanitizeOptions(this._options);
-    }
-
-    // Perform the redirected request
-    try {
-      this._performRequest();
-    }
-    catch (cause) {
-      this.emit("error", new RedirectionError(cause));
-    }
-  }
-  else {
-    // The response is not a redirect; return it as-is
+  if (!location || this._options.followRedirects === false ||
+      statusCode < 300 || statusCode >= 400) {
     response.responseUrl = this._currentUrl;
     response.redirects = this._redirects;
     this.emit("response", response);
 
     // Clean up
     this._requestBodyBuffers = [];
+    return;
+  }
+
+  // The response is a redirect, so abort the current request
+  abortRequest(this._currentRequest);
+  // Discard the remainder of the response to avoid waiting for data
+  response.destroy();
+
+  // RFC7231§6.4: A client SHOULD detect and intervene
+  // in cyclical redirections (i.e., "infinite" redirection loops).
+  if (++this._redirectCount > this._options.maxRedirects) {
+    this.emit("error", new TooManyRedirectsError());
+    return;
+  }
+
+  // RFC7231§6.4: Automatic redirection needs to done with
+  // care for methods not known to be safe, […]
+  // RFC7231§6.4.2–3: For historical reasons, a user agent MAY change
+  // the request method from POST to GET for the subsequent request.
+  if ((statusCode === 301 || statusCode === 302) && this._options.method === "POST" ||
+      // RFC7231§6.4.4: The 303 (See Other) status code indicates that
+      // the server is redirecting the user agent to a different resource […]
+      // A user agent can perform a retrieval request targeting that URI
+      // (a GET or HEAD request if using HTTP) […]
+      (statusCode === 303) && !/^(?:GET|HEAD)$/.test(this._options.method)) {
+    this._options.method = "GET";
+    // Drop a possible entity and headers related to it
+    this._requestBodyBuffers = [];
+    removeMatchingHeaders(/^content-/i, this._options.headers);
+  }
+
+  // Drop the Host header, as the redirect might lead to a different host
+  var currentHostHeader = removeMatchingHeaders(/^host$/i, this._options.headers);
+
+  // If the redirect is relative, carry over the host of the last request
+  var currentUrlParts = url.parse(this._currentUrl);
+  var currentHost = currentHostHeader || currentUrlParts.host;
+  var currentUrl = /^\w+:/.test(location) ? this._currentUrl :
+    url.format(Object.assign(currentUrlParts, { host: currentHost }));
+
+  // Determine the URL of the redirection
+  var redirectUrl;
+  try {
+    redirectUrl = url.resolve(currentUrl, location);
+  }
+  catch (cause) {
+    this.emit("error", new RedirectionError(cause));
+    return;
+  }
+
+  // Create the redirected request
+  debug("redirecting to", redirectUrl);
+  this._isRedirect = true;
+  var redirectUrlParts = url.parse(redirectUrl);
+  Object.assign(this._options, redirectUrlParts);
+
+  // Drop confidential headers when redirecting to a less secure protocol
+  // or to a different domain that is not a superdomain
+  if (redirectUrlParts.protocol !== currentUrlParts.protocol &&
+     redirectUrlParts.protocol !== "https:" ||
+     redirectUrlParts.host !== currentHost &&
+     !isSubdomain(redirectUrlParts.host, currentHost)) {
+    removeMatchingHeaders(/^(?:authorization|cookie)$/i, this._options.headers);
+  }
+
+  // Evaluate the beforeRedirect callback
+  if (typeof this._options.beforeRedirect === "function") {
+    var responseDetails = { headers: response.headers };
+    try {
+      this._options.beforeRedirect.call(null, this._options, responseDetails);
+    }
+    catch (err) {
+      this.emit("error", err);
+      return;
+    }
+    this._sanitizeOptions(this._options);
+  }
+
+  // Perform the redirected request
+  try {
+    this._performRequest();
+  }
+  catch (cause) {
+    this.emit("error", new RedirectionError(cause));
   }
 };
 
@@ -3375,11 +3649,12 @@ function removeMatchingHeaders(regex, headers) {
   var lastValue;
   for (var header in headers) {
     if (regex.test(header)) {
-      lastValue = headers[header].toString().trim();
+      lastValue = headers[header];
       delete headers[header];
     }
   }
-  return lastValue;
+  return (lastValue === null || typeof lastValue === "undefined") ?
+    undefined : String(lastValue).trim();
 }
 
 function createErrorType(code, defaultMessage) {
@@ -3408,7 +3683,7 @@ function abortRequest(request) {
   request.abort();
 }
 
-function isSubdomainOf(subdomain, domain) {
+function isSubdomain(subdomain, domain) {
   const dot = subdomain.length - domain.length - 1;
   return dot > 0 && subdomain[dot] === "." && subdomain.endsWith(domain);
 }
@@ -3420,220 +3695,7 @@ module.exports.wrap = wrap;
 
 /***/ }),
 
-/***/ 498:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ApiClient = void 0;
-const axios_1 = __importDefault(__nccwpck_require__(545));
-class ApiClient {
-    constructor(config) {
-        this.axios = axios_1.default.create(config);
-        this.setUp();
-    }
-    get(url, config) {
-        return this.axios.get(url, config);
-    }
-    post(url, data, config) {
-        return this.axios.post(url, data, config);
-    }
-    put(url, data, config) {
-        return this.axios.put(url, data, config);
-    }
-    setUp() {
-        this.axios.interceptors.response.use((response) => response, ApiClient.onRejectLogError);
-    }
-    static onRejectLogError(error) {
-        let errorMessage = 'An error has occurred during BRC API communication. Please see more details below:';
-        if (error.response) {
-            errorMessage += `\nResponse: ${JSON.stringify(error.response.data, null, 2)} `;
-            errorMessage += `\nStatus: ${JSON.stringify(error.response.status, null, 2)}`;
-            errorMessage += `\nHeaders: ${JSON.stringify(error.response.headers, null, 2)}`;
-        }
-        else if (error.request) {
-            errorMessage += 'No response received.';
-        }
-        else {
-            errorMessage += `Unknown error: ${error.message}`;
-        }
-        errorMessage += `\nRequest Config: ${JSON.stringify(error.config, null, 2)}`;
-        return Promise.reject(new Error(errorMessage));
-    }
-}
-exports.ApiClient = ApiClient;
-
-
-/***/ }),
-
-/***/ 343:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.BrOperations = void 0;
-class BrOperations {
-    constructor(apiClient) {
-        this.apiClient = apiClient;
-    }
-    async login(username, password) {
-        console.log('Retrieve BRC access token.');
-        const authURL = '/v3/authn/access_token';
-        const response = await this.apiClient.post(authURL, {
-            username,
-            password,
-        });
-        console.log('Received access token');
-        const authResponse = response.data;
-        return `Bearer ${authResponse.access_token}`;
-    }
-    async deploy(distId, environmentId, appConfigFileRoles, accessToken) {
-        console.log('Deploy distribution to BRC.');
-        const body = {
-            distributionId: distId,
-            strategy: 'stopstart',
-            appConfigFileRoles: appConfigFileRoles
-        };
-        await this.apiClient.put(`/v3/environments/${environmentId}/deploy`, body, {
-            headers: {
-                Authorization: accessToken,
-            },
-        });
-        console.log('Deploy request completed.');
-    }
-    async getEnvironmentId(environmentName, accessToken) {
-        console.log('Get environment id.');
-        const response = await this.apiClient.get('/v3/environments?name=' + environmentName, {
-            headers: {
-                Authorization: accessToken,
-            }
-        });
-        console.log('Received environment id.');
-        return response.data.id;
-    }
-    async getAppConfigFilesNameIdMap(accessToken) {
-        console.log('Get app config files.');
-        const response = await this.apiClient.get('/v3/appconfigfiles', {
-            headers: {
-                Authorization: accessToken,
-            }
-        });
-        console.log('Received app config files.');
-        console.log('Translating app config files into name/id map.');
-        let configFilesNameToIdMap = new Map();
-        for (var fileObj of response.data) {
-            configFilesNameToIdMap.set(fileObj.name, fileObj.id);
-        }
-        console.log('Finished translating app config files into name/id map.');
-        return configFilesNameToIdMap;
-    }
-}
-exports.BrOperations = BrOperations;
-
-
-/***/ }),
-
-/***/ 144:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-const core = __importStar(__nccwpck_require__(186));
-const BrOperations_1 = __nccwpck_require__(343);
-const ApiClient_1 = __nccwpck_require__(498);
-function initBrOperations(brcStack) {
-    const config = {
-        baseURL: `https://api-${brcStack}.onehippo.io`,
-        headers: {
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        },
-        timeout: 1000 * 120,
-        timeoutErrorMessage: "Timeout Error! The time limit of 2 minutes was exceeded."
-    };
-    const apiClient = new ApiClient_1.ApiClient(config);
-    return new BrOperations_1.BrOperations(apiClient);
-}
-async function deployDistribution() {
-    try {
-        const brcStack = core.getInput('brcStack', { required: true });
-        const username = core.getInput('username', { required: true });
-        const password = core.getInput('password', { required: true });
-        const envName = core.getInput('envName', { required: true });
-        const distId = core.getInput('distId', { required: true });
-        const configFilesAsSystemProperties = core.getInput('configFilesAsSystemProperties', { required: false });
-        const brOperations = initBrOperations(brcStack);
-        core.info('Start login process');
-        const accessToken = await brOperations.login(username, password);
-        core.info('Login process finished with success');
-        core.info('Start deploying process');
-        const envId = await brOperations.getEnvironmentId(envName, accessToken);
-        const appConfigFilesNameIdMap = await brOperations.getAppConfigFilesNameIdMap(accessToken);
-        core.info(`All BR Cloud config files name/id map = ${Object.entries([...appConfigFilesNameIdMap])}`);
-        const appConfigFileRoles = getAppConfigFileRoles(configFilesAsSystemProperties, 'systemproperty', appConfigFilesNameIdMap);
-        if (!envId) {
-            core.setFailed(`Deploy suspended! No environment with name ${envName} has been found.`);
-        }
-        await brOperations.deploy(distId, envId, appConfigFileRoles, accessToken);
-        core.info(`Finished deploying process. Environment ID: ${envId}, DistributionID = ${distId} and Java 'systemproperty' role based AppConfigFileRoles: ${JSON.stringify(appConfigFileRoles)} `);
-    }
-    catch (error) {
-        core.setFailed(error.message);
-    }
-}
-function getAppConfigFileRoles(configFiles, role, appConfigFilesNameIdMap) {
-    let appConfigFileRoles = [];
-    if (!configFiles) {
-        return appConfigFileRoles;
-    }
-    for (var file of configFiles.split('/,\s*/')) {
-        if (appConfigFilesNameIdMap.has(file)) {
-            appConfigFileRoles.push({
-                appConfigFileId: appConfigFilesNameIdMap.get(file),
-                role: role
-            });
-        }
-        else {
-            core.error(`Deploy suspended! Config file ${file} doesn't exists on BR Cloud.`);
-        }
-    }
-    return appConfigFileRoles;
-}
-deployDistribution()
-    .then(() => core.info("Finished action"))
-    .catch((error) => {
-    core.setFailed(error.message);
-});
-
-
-/***/ }),
-
-/***/ 975:
+/***/ 614:
 /***/ ((module) => {
 
 module.exports = eval("require")("debug");
@@ -3641,75 +3703,75 @@ module.exports = eval("require")("debug");
 
 /***/ }),
 
-/***/ 491:
+/***/ 357:
 /***/ ((module) => {
 
 "use strict";
-module.exports = require("assert");
+module.exports = require("assert");;
 
 /***/ }),
 
-/***/ 147:
+/***/ 747:
 /***/ ((module) => {
 
 "use strict";
-module.exports = require("fs");
+module.exports = require("fs");;
 
 /***/ }),
 
-/***/ 685:
+/***/ 605:
 /***/ ((module) => {
 
 "use strict";
-module.exports = require("http");
+module.exports = require("http");;
 
 /***/ }),
 
-/***/ 687:
+/***/ 211:
 /***/ ((module) => {
 
 "use strict";
-module.exports = require("https");
+module.exports = require("https");;
 
 /***/ }),
 
-/***/ 37:
+/***/ 87:
 /***/ ((module) => {
 
 "use strict";
-module.exports = require("os");
+module.exports = require("os");;
 
 /***/ }),
 
-/***/ 17:
+/***/ 622:
 /***/ ((module) => {
 
 "use strict";
-module.exports = require("path");
+module.exports = require("path");;
 
 /***/ }),
 
-/***/ 781:
+/***/ 413:
 /***/ ((module) => {
 
 "use strict";
-module.exports = require("stream");
+module.exports = require("stream");;
 
 /***/ }),
 
-/***/ 310:
+/***/ 835:
 /***/ ((module) => {
 
 "use strict";
-module.exports = require("url");
+module.exports = require("url");;
 
 /***/ }),
 
-/***/ 796:
+/***/ 761:
 /***/ ((module) => {
 
 "use strict";
-module.exports = require("zlib");
+module.exports = require("zlib");;
 
 /***/ })
 
@@ -3721,9 +3783,8 @@ module.exports = require("zlib");
 /******/ 	// The require function
 /******/ 	function __nccwpck_require__(moduleId) {
 /******/ 		// Check if module is in cache
-/******/ 		var cachedModule = __webpack_module_cache__[moduleId];
-/******/ 		if (cachedModule !== undefined) {
-/******/ 			return cachedModule.exports;
+/******/ 		if(__webpack_module_cache__[moduleId]) {
+/******/ 			return __webpack_module_cache__[moduleId].exports;
 /******/ 		}
 /******/ 		// Create a new module (and put it into the cache)
 /******/ 		var module = __webpack_module_cache__[moduleId] = {
@@ -3748,15 +3809,10 @@ module.exports = require("zlib");
 /************************************************************************/
 /******/ 	/* webpack/runtime/compat */
 /******/ 	
-/******/ 	if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = __dirname + "/";
-/******/ 	
-/************************************************************************/
-/******/ 	
+/******/ 	__nccwpck_require__.ab = __dirname + "/";/************************************************************************/
+/******/ 	// module exports must be returned from runtime so entry inlining is disabled
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
-/******/ 	// This entry module is referenced by other modules so it can't be inlined
-/******/ 	var __webpack_exports__ = __nccwpck_require__(144);
-/******/ 	module.exports = __webpack_exports__;
-/******/ 	
+/******/ 	return __nccwpck_require__(72);
 /******/ })()
 ;
