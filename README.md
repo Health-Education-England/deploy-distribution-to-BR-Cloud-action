@@ -1,6 +1,6 @@
 # Deploy distribution to Bloomreach(BR) Cloud action
 This action deploys a distribution to BR Cloud using the BR Cloud Rest API. Currently, the action doesn't support copying configuration files though allows configuration files to use as Java system properties.
-The API documentation is available at `https://api-<stack-name>.onehippo.io/v3/docs`.
+The API documentation is available at `https://api.<stack-name>.bloomreach.cloud/v3/docs`.
 
 ## Inputs
 

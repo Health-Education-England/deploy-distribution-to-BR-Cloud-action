@@ -5,7 +5,7 @@ import {AppConfigFileRole} from "./types";
 
 function initBrOperations(brcStack: string) {
     const config = {
-        baseURL: `https://api-${brcStack}.onehippo.io`,
+        baseURL: `https://api.${brcStack}.bloomreach.cloud`,
         headers: {
             "Content-Type": "application/json",
             "Accept": "application/json"
