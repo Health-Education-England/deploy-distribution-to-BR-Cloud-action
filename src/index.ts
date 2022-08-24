@@ -59,7 +59,7 @@ function getAppConfigFileRoles(configFiles: string, role: string, appConfigFiles
         return appConfigFileRoles;
     }
 
-    for (var file of configFiles.split('/,\s*/')) {
+    for (var file of configFiles.split(/\s*,\s*/)) {
         if (appConfigFilesNameIdMap.has(file)) {
             appConfigFileRoles.push({
                 appConfigFileId: appConfigFilesNameIdMap.get(file)!,
