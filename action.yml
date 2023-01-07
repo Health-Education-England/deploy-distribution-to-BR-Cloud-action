@@ -20,5 +20,5 @@ inputs:
     description: 'BR Cloud comma separated config files as Java system properties [role: "systemproperty"]'
     required: false
 runs:
-  using: 'node12'
+  using: 'node16'
   main: 'dist/index.js'
