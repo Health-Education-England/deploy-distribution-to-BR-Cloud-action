@@ -26,6 +26,7 @@ async function deployDistribution() {
         const envName = core.getInput('envName', {required: true})
         const distId = core.getInput('distId', {required: true})
         const configFilesAsSystemProperties = core.getInput('configFilesAsSystemProperties', {required: false})
+        const configFilesAsFileProperties = core.getInput('configFilesAsFileProperties', {required: false})
 
         const brOperations = initBrOperations(brcStack)
 
@@ -39,14 +40,14 @@ async function deployDistribution() {
         const appConfigFilesNameIdMap = await brOperations.getAppConfigFilesNameIdMap(accessToken);
         core.info(`All BR Cloud config files name/id map = ${Object.entries([...appConfigFilesNameIdMap])}`);
 
-        const appConfigFileRoles: Array<AppConfigFileRole> = getAppConfigFileRoles(configFilesAsSystemProperties, 'systemproperty', appConfigFilesNameIdMap);
+        const appConfigFileRoles: Array<AppConfigFileRole> = [...getAppConfigFileRoles(configFilesAsSystemProperties, 'systemproperty', appConfigFilesNameIdMap), ...getAppConfigFileRoles(configFilesAsFileProperties, 'file', appConfigFilesNameIdMap)];
 
         if (!envId) {
             core.setFailed(`Deploy suspended! No environment with name ${envName} has been found.`);
         }
 
         await brOperations.deploy(distId, envId, appConfigFileRoles, accessToken);
-        core.info(`Finished deploying process. Environment ID: ${envId}, DistributionID = ${distId} and Java 'systemproperty' role based AppConfigFileRoles: ${JSON.stringify(appConfigFileRoles)} `);
+        core.info(`Finished deploying process. Environment ID: ${envId}, DistributionID = ${distId} and AppConfigFileRoles: ${JSON.stringify(appConfigFileRoles)} `);
     } catch (error) {
         core.setFailed(error.message);
     }

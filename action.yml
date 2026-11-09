@@ -19,6 +19,9 @@ inputs:
   configFilesAsSystemProperties:
     description: 'BR Cloud comma separated config files as Java system properties [role: "systemproperty"]'
     required: false
+  configFilesAsFileProperties:
+    description: 'BR Cloud comma separated config files as Java file properties [role: "file"]'
+    required: false    
 runs:
   using: 'node24'
   main: 'dist/index.js'
